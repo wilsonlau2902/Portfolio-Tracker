@@ -19,11 +19,13 @@ client = gspread.authorize(creds)
 
 # 2. Open your Sheet
 # Note: Ensure you have shared your Google Sheet with the client_email from service_account.json
-sheet_name = "My Portfolio Dashboard"
+# Sheet ID from URL: https://docs.google.com/spreadsheets/d/19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESayGbTO8/edit
+SHEET_ID = "19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESayGbTO8"
+
 try:
-    sheet = client.open(sheet_name).sheet1
+    sheet = client.open_by_key(SHEET_ID).sheet1
 except gspread.exceptions.SpreadsheetNotFound:
-    print(f"Error: Spreadsheet '{sheet_name}' not found. Make sure it exists and is shared with the service account email.")
+    print(f"Error: Spreadsheet with ID '{SHEET_ID}' not found. Make sure it is shared with the service account email.")
     exit(1)
 
 # 3. Define your Portfolio (from your screenshots)
@@ -94,7 +96,7 @@ def update_portfolio():
         sheet.update(range_name='A1', values=rows)
     except TypeError:
          # Fallback for older legacy method
-         sheet.update('A1', rows)
+         sheet.update('A1', rows)Portfolio Tracker
 
     print(f"Successfully updated '{sheet_name}' at {time.strftime('%H:%M:%S')}")
 
