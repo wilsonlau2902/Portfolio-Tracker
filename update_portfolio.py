@@ -178,6 +178,10 @@ def update_portfolio():
     print("Updating Dashboard...")
     dash_sheet.clear()
     
+    # Ensure sheet has enough columns (M is col 13, let's set to 20 to be safe)
+    if dash_sheet.col_count < 20:
+        dash_sheet.resize(cols=20)
+    
     # Update Main Table (A:H)
     dash_sheet.update(range_name='A1', values=[headers] + output)
     
