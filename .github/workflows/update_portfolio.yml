@@ -2,9 +2,9 @@ name: Update Portfolio Dashboard
 
 on:
   schedule:
-    # Run every 15 minutes roughly during US market hours (14:00 to 21:00 UTC)
+    # Run every 5 minutes roughly during US market hours (14:00 to 21:00 UTC)
     # Adjust UTC times based on Daylight Savings if precision is needed
-    - cron: '*/15 14-21 * * 1-5'
+    - cron: '*/5 14-21 * * 1-5'
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Install dependencies
       run: |
