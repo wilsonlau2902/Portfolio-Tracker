@@ -96,9 +96,9 @@ def update_portfolio():
         sheet.update(range_name='A1', values=rows)
     except TypeError:
          # Fallback for older legacy method
-         sheet.update('A1', rows)Portfolio Tracker
+         sheet.update('A1', rows)
 
-    print(f"Successfully updated '{sheet_name}' at {time.strftime('%H:%M:%S')}")
+    print(f"Successfully updated 'Portfolio Tracker' at {time.strftime('%H:%M:%S')}")
 
 if __name__ == "__main__":
     update_portfolio()
