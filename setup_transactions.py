@@ -17,7 +17,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
 client = gspread.authorize(creds)
 
 # Sheet ID from update_portfolio.py
-SHEET_ID = "19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESayGbTO8"
+SHEET_ID = "19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESaYGbTO8"
 
 try:
     spreadsheet = client.open_by_key(SHEET_ID)

@@ -19,8 +19,8 @@ client = gspread.authorize(creds)
 
 # 2. Open your Sheet
 # Note: Ensure you have shared your Google Sheet with the client_email from service_account.json
-# Sheet ID from URL: https://docs.google.com/spreadsheets/d/19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESayGbTO8/edit
-SHEET_ID = "19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESayGbTO8"
+# Sheet ID from URL: https://docs.google.com/spreadsheets/d/19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESaYGbTO8/edit
+SHEET_ID = "19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESaYGbTO8"
 
 try:
     sheet = client.open_by_key(SHEET_ID)
