@@ -51,6 +51,10 @@ def update_portfolio():
     df_trans['Qty'] = pd.to_numeric(df_trans['Qty'])
     df_trans['Total Capital'] = pd.to_numeric(df_trans['Total Capital'])
 
+    # Clean Ticker names (strip whitespace and uppercase) to prevent matching errors
+    if 'Ticker' in df_trans.columns:
+        df_trans['Ticker'] = df_trans['Ticker'].astype(str).str.strip().str.upper()
+
     # 4. Aggregate Positions (WAC Model)
     # Filter for 'Buy' (Positive Qty) and 'Sell' (Negative Qty logic to be added later if needed)
     # For now, we assume simple accumulation
@@ -150,7 +154,8 @@ def update_portfolio():
             ])
             
             total_unrealized_pnl += unrealized_pnl
-            total_market_value += market_value
+            # Use empty strings instead of "N/A" to avoid Google Sheet validation errors in Number columns
+            output.append([ticker, row['Qty'], round(row['Avg Cost'], 2), "", "", sector, "", "
             total_cost_basis += cost_basis
         else:
             sector = sector_map.get(ticker, 'Other')
