@@ -1,63 +1,147 @@
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import time
+import os
 
-def analyze_correlation():
-    # Define tickers
-    # Assuming 'SPYM' was a typo for 'SPY' (S&P 500), but we can check both if needed.
-    # We will use SPY as the benchmark for the market.
-    tickers = ['KO', 'SPY']
-    
-    print(f"Fetching data for {tickers}...")
-    
-    # Download historical data (last 10 years)
-    data = yf.download(tickers, period="10y", interval="1d")
-    
-    # 'Adj Close' accounts for dividends and splits, which is better for calculating returns
-    if 'Adj Close' in data:
-        prices = data['Adj Close']
-    else:
-        prices = data['Close'] # Fallback if Adj Close not returned appropriately in multi-index
+# 1. Setup Authentication (Reusing your existing setup)
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds_file = "service_account.json"
+SHEET_ID = "19d0B0GoNgPPYe7kxlQhGj1B8J3TsQN4u3yESaYGbTO8"
+
+def get_client():
+    if not os.path.exists(creds_file):
+        print(f"Error: {creds_file} not found.")
+        return None
+    creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
+    return gspread.authorize(creds)
+
+def setup_correlation_sheet(sheet):
+    """Creates the Correlation tab layout if it doesn't exist or is empty."""
+    try:
+        ws = sheet.worksheet("Correlation Analysis")
+    except gspread.exceptions.WorksheetNotFound:
+        print("Creating 'Correlation Analysis' tab...")
+        ws = sheet.add_worksheet(title="Correlation Analysis", rows=100, cols=20)
         
-    # Calculate daily percentage returns
-    returns = prices.pct_change().dropna()
-    
-    # 1. Calculate Correlation
-    correlation = returns['KO'].corr(returns['SPY'])
-    print(f"\nCorrelation between KO and SPY: {correlation:.4f}")
-    
-    if correlation > 0.5:
-        print("Interpretation: Strong Positive Correlation (They move together)")
-    elif correlation < -0.5:
-        print("Interpretation: Strong Negative Correlation (They move opposite)")
-    else:
-        print("Interpretation: Weak or No Significant Correlation")
+        # Initial Layout
+        ws.update(range_name='A1', values=[
+            ["CONFIGURATION", ""],
+            ["Time Period (1y, 2y, 3y, 5y, 10y)", "1y"],
+            ["Tickers to Analyze (One per row)", ""],
+            ["AMD", ""], 
+            ["NVDA", ""],
+            ["GOOGL", ""],
+            ["MSFT", ""],
+            ["SPY", ""]
+        ])
+        # Note: Formatting would happen here if we used gspread-formatting
+        
+    return ws
 
-    # 2. Count days with opposite separate movements
-    # Create a dataframe to compare signs
-    moves = pd.DataFrame()
-    moves['KO_Sign'] = returns['KO'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
-    moves['SPY_Sign'] = returns['SPY'].apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+def run_correlation_analysis():
+    client = get_client()
+    if not client: return
+
+    try:
+        sheet = client.open_by_key(SHEET_ID)
+    except Exception as e:
+        print(f"Error opening sheet: {e}")
+        return
+
+    # 1. Get or Create Tab
+    ws = setup_correlation_sheet(sheet)
     
-    moves['Opposite'] = (moves['KO_Sign'] * moves['SPY_Sign']) < 0
+    print("\nReading configuration from 'Correlation Analysis' tab...")
     
-    opposite_days = moves['Opposite'].sum()
-    total_days = len(moves)
-    percentage_opposite = (opposite_days / total_days) * 100
+    # Read Period (Cell B2) of 'Correlation Analysis'
+    period = ws.acell('B2').value
+    if not period or period not in ['1y', '2y', '3y', '5y', '10y']:
+        print(f"Warning: Invalid or empty period '{period}'. Defaulting to '1y'.")
+        period = "1y"
+        ws.update('B2', "1y")
     
-    print(f"\nTotal Trading Days Analyzed: {total_days}")
-    print(f"Days moving in opposite directions: {opposite_days} ({percentage_opposite:.1f}%)")
+    # Read Tickers (Column A, starting A4)
+    # Read all values in Col A
+    col_a = ws.col_values(1)
     
-    # 3. Visualization
-    plt.figure(figsize=(10, 6))
-    sns.regplot(x=returns['SPY'], y=returns['KO'], scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
-    plt.title(f'Daily Returns: KO vs SPY (Correlation: {correlation:.2f})')
-    plt.xlabel('SPY Daily Return')
-    plt.ylabel('KO Daily Return')
-    plt.grid(True)
-    plt.savefig('correlation_plot.png')
-    print("\nPlot saved as 'correlation_plot.png'")
+    # Extract tickers starting from row 4
+    # The list index is 0-based, so Row 4 is index 3
+    if len(col_a) > 3:
+        tickers = [t.strip().upper() for t in col_a[3:] if t.strip()]
+    else:
+        tickers = []
+
+    # Filter duplicates while maintaining order
+    tickers = list(dict.fromkeys(tickers))
+
+    if len(tickers) < 2:
+        print("Not enough tickers found in Column A (rows 4+). Please add at least 2 tickers in the sheet.")
+        return
+
+    print(f"Analyzing {len(tickers)} tickers over {period}...")
+
+    # 2. Fetch Data
+    try:
+        # progress=False suppresses the progress bar string output
+        data = yf.download(tickers, period=period, progress=False)
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        return
+
+    if data.empty:
+        print("No data fetched. Check ticker symbols.")
+        return
+
+    try:
+        # Handle yfinance multi-index columns if needed
+        # 'Close' usually returns a DataFrame where columns are Tickers
+        if 'Close' in data:
+            prices = data['Close']
+        else:
+            prices = data
+        
+        # Calculate daily percentage returns
+        returns = prices.pct_change().dropna()
+        
+    except Exception as e:
+        print(f"Error processing data structure: {e}")
+        return
+
+    # 3. Calculate Correlation
+    corr_matrix = returns.corr()
+
+    # 4. Output to Sheet
+    # We'll place the matrix starting at Cell E1
+    
+    print("Writing heatmap data to sheet...")
+    
+    # Clean non-serializable/NaNs if any (using fillna)
+    corr_matrix = corr_matrix.fillna(0)
+    
+    # Prepare output list
+    # Row 1: [Space, T1, T2, T3...] (Header)
+    header_row = ["Correlation Matrix"] + corr_matrix.columns.tolist()
+    
+    output_data = [header_row]
+    for index, row in corr_matrix.iterrows():
+        # [Ticker, Val1, Val2, Val3...]
+        row_data = [index] + row.tolist()
+        # Round logic for display
+        row_data = [x if isinstance(x, str) else round(x, 2) for x in row_data]
+        output_data.append(row_data)
+
+    # Clear previous results area (E1 to Z100)
+    # Be careful not to clear more than needed if sheet is small, but 100x20 is fine.
+    try:
+        ws.batch_clear(["E1:Z50"])
+        ws.update(range_name='E1', values=output_data)
+        print("Success! Data updated.")
+        print("Tip: Select the matrix in Google Sheets -> Format -> Conditional Formatting -> Color Scale to create the visual heatmap.")
+        
+    except Exception as e:
+        print(f"Error updating sheet: {e}")
 
 if __name__ == "__main__":
-    analyze_correlation()
+    run_correlation_analysis()
