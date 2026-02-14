@@ -160,13 +160,16 @@ def run_correlation_analysis():
         
         # Write Timestamp to C3
         current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        status_msg = f"Last Updated: {current_time} (Auto-updates every ~5 mins)"
+        
         # Ensure C3 has a value
         try:
-             ws.update(range_name='C3', values=[[f"Last Updated: {current_time}"]])
+             ws.update(range_name='C3', values=[[status_msg]])
         except:
              pass
              
         print("Success! Data updated.")
+        print(f"Included tickers: {corr_matrix.columns.tolist()}")
         
     except Exception as e:
         print(f"Error updating sheet: {e}")
