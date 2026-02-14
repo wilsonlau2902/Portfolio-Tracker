@@ -4,6 +4,7 @@ import yfinance as yf
 import pandas as pd
 import time
 import os
+import datetime
 
 # 1. Setup Authentication (Reusing your existing setup)
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -29,15 +30,13 @@ def setup_correlation_sheet(sheet):
         ws.update(range_name='A1', values=[
             ["CONFIGURATION", ""],
             ["Time Period (1y, 2y, 3y, 5y, 10y)", "1y"],
-            ["Tickers to Analyze (One per row)", ""],
+            ["Tickers to Analyze (One per row)", "Last Updated:"],
             ["AMD", ""], 
             ["NVDA", ""],
             ["GOOGL", ""],
             ["MSFT", ""],
             ["SPY", ""]
         ])
-        # Note: Formatting would happen here if we used gspread-formatting
-        
     return ws
 
 def run_correlation_analysis():
@@ -110,14 +109,28 @@ def run_correlation_analysis():
         else:
             prices = data
         
-        # Calculate daily percentage returns
-        returns = prices.pct_change().dropna()
+        # 1. Drop columns (tickers) that have NO data at all (avoid failure if one ticker is bad)
+        prices = prices.dropna(axis=1, how='all')
         
+        if prices.empty:
+             print("All tickers returned empty data.")
+             return
+
+        # 2. Calculate daily percentage returns
+        returns = prices.pct_change()
+        
+        # 3. Allow partial data (pairwise correlation handles it)
+        # We only drop rows that are completely empty across ALL tickers (e.g. holidays)
+        returns = returns.dropna(how='all') 
+        
+        print(f"Proceeding with {len(returns)} rows of data...")
+
     except Exception as e:
         print(f"Error processing data structure: {e}")
         return
 
     # 3. Calculate Correlation
+    # min_periods=1 allows calculation even if overlaps are sparse
     corr_matrix = returns.corr()
 
     # 4. Output to Sheet
@@ -140,13 +153,20 @@ def run_correlation_analysis():
         row_data = [x if isinstance(x, str) else round(x, 2) for x in row_data]
         output_data.append(row_data)
 
-    # Clear previous results area (E1 to Z100)
-    # Be careful not to clear more than needed if sheet is small, but 100x20 is fine.
+    # Clear previous results area (E1 to AZ100)
     try:
-        ws.batch_clear(["E1:Z50"])
+        ws.batch_clear(["E1:AZ100"])
         ws.update(range_name='E1', values=output_data)
+        
+        # Write Timestamp to C3
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Ensure C3 has a value
+        try:
+             ws.update(range_name='C3', values=[[f"Last Updated: {current_time}"]])
+        except:
+             pass
+             
         print("Success! Data updated.")
-        print("Tip: Select the matrix in Google Sheets -> Format -> Conditional Formatting -> Color Scale to create the visual heatmap.")
         
     except Exception as e:
         print(f"Error updating sheet: {e}")
