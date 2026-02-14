@@ -34,3 +34,8 @@ jobs:
       env:
         # If your script relied on other env vars, add them here
         PYTHONUNBUFFERED: 1
+
+    - name: Run Correlation Analysis
+      run: python analyze_correlation.py
+      env:
+        PYTHONUNBUFFERED: 1
