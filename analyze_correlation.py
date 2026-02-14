@@ -56,11 +56,19 @@ def run_correlation_analysis():
     print("\nReading configuration from 'Correlation Analysis' tab...")
     
     # Read Period (Cell B2) of 'Correlation Analysis'
-    period = ws.acell('B2').value
-    if not period or period not in ['1y', '2y', '3y', '5y', '10y']:
-        print(f"Warning: Invalid or empty period '{period}'. Defaulting to '1y'.")
-        period = "1y"
-        ws.update('B2', "1y")
+    period_raw = ws.acell('B2').value
+    # Normalize input: remove spaces, convert to lowercase
+    period = str(period_raw).strip().lower() if period_raw else "1y"
+    
+    valid_periods = ['1y', '2y', '5y', '10y', 'ytd', 'max']
+    
+    # Allow '3y' even if possibly not standard in some contexts, yfinance supports it.
+    if period not in valid_periods and 'y' not in period:
+         print(f"Warning: value '{period_raw}' might be invalid. Defaulting to '1y'.")
+         period = "1y"
+         ws.update('B2', "1y")
+
+    print(f"Configuration Period: {period}")
     
     # Read Tickers (Column A, starting A4)
     # Read all values in Col A
