@@ -148,18 +148,18 @@ def update_portfolio():
                 round(avg_cost, 2), 
                 round(price, 2), 
                 round(market_value, 2), 
-                sector, # Added Sector Column
+                sector, 
                 round(unrealized_pnl, 2), 
                 f"{pnl_pct:.2f}%"
             ])
             
             total_unrealized_pnl += unrealized_pnl
-            # Use empty strings instead of "N/A" to avoid Google Sheet validation errors in Number columns
-            output.append([ticker, row['Qty'], round(row['Avg Cost'], 2), "", "", sector, "", "
+            total_market_value += market_value
             total_cost_basis += cost_basis
         else:
             sector = sector_map.get(ticker, 'Other')
-            output.append([ticker, row['Qty'], round(row['Avg Cost'], 2), "N/A", "N/A", sector, "N/A", "N/A"])
+            # Use empty strings instead of "N/A" to avoid Google Sheet validation errors in Number columns
+            output.append([ticker, row['Qty'], round(row['Avg Cost'], 2), "", "", sector, "", ""])
 
     # 6. Push to Dashboard
     headers = ["Ticker", "Qty", "Avg Cost", "Live Price", "Market Value", "Sector", "Unrealized PnL", "Unrealized %"]
